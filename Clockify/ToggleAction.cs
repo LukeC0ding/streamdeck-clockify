@@ -61,7 +61,7 @@ public class ToggleAction : KeypadBase
 
         if (_buttonState.Ticks >= _settings.RefreshRate)
         {
-            var timer = await _clockifyService.GetRunningTimerAsync();
+            var timer = await _clockifyService.FetchRunningTimerAsync();
             var timerTime = string.Empty;
 
             if (timer?.TimeInterval?.Start != null)

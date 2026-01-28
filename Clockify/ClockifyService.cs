@@ -70,47 +70,14 @@ public class ClockifyService(Logger logger)
         }
     }
 
-    public async Task<TimeEntryWithRatesDtoV1> GetRunningTimerAsync()
+    public async Task<TimeEntryWithRatesDtoV1> FetchRunningTimerAsync()
     {
         logger.LogInfo("Fetching running timer...");
         
         await _cacheLock.WaitAsync();
         try
         {
-            if (!IsValid)
-            {
-                logger.LogError($"Fetching running timer failed, invalid settings: {_settings}");
-                return null;
-            }
-
-            try
-            {
-                var timeEntries = await _clockifyClient.V1.Workspaces[_workspace.Id].User[_currentUser.Id].TimeEntries
-                    .GetAsync(p => p.QueryParameters.InProgress = true);
-
-                if (string.IsNullOrEmpty(_settings.ProjectName))
-                {
-                    return timeEntries?.FirstOrDefault(t => string.IsNullOrEmpty(_settings.TimerName) || t.Description == _settings.TimerName);
-                }
-
-                if (_project is null)
-                {
-                    logger.LogError($"Fetching running timer failed, no project in workspace matching {_settings.ProjectName}");
-                    return null;
-                }
-
-                return timeEntries?.FirstOrDefault(t => t.ProjectId == _project.Id
-                                                        && (string.IsNullOrEmpty(_settings.TimerName) || t.Description == _settings.TimerName)
-                                                        && (string.IsNullOrEmpty(_settings.TaskName) || string.IsNullOrEmpty(_task?.Id) || t.TaskId == _task.Id)
-                                                        && ((t.TagIds is null && _tags is null) || (t.TagIds is not null && _tags is not null && t.TagIds.OrderBy(s => s, StringComparer.InvariantCulture)
-                                                            .SequenceEqual(_tags.OrderBy(s => s, StringComparer.InvariantCulture))))
-                                                        && t.Billable == _settings.Billable);
-            }
-            catch (Exception exception) when (exception is ApiException or HttpRequestException)
-            {
-                logger.LogError($"Fetching running timer failed, TimeEntry request failed: {exception.Message}");
-                return null;
-            }
+            return await GetRunningTimerAsync();
         }
         finally
         {
@@ -166,6 +133,44 @@ public class ClockifyService(Logger logger)
         finally
         {
             _cacheLock.Release();
+        }
+    }
+
+    private async Task<TimeEntryWithRatesDtoV1> GetRunningTimerAsync()
+    {
+        if (!IsValid)
+        {
+            logger.LogError($"Fetching running timer failed, invalid settings: {_settings}");
+            return null;
+        }
+
+        try
+        {
+            var timeEntries = await _clockifyClient.V1.Workspaces[_workspace.Id].User[_currentUser.Id].TimeEntries
+                                                   .GetAsync(p => p.QueryParameters.InProgress = true);
+
+            if (string.IsNullOrEmpty(_settings.ProjectName))
+            {
+                return timeEntries?.FirstOrDefault(t => string.IsNullOrEmpty(_settings.TimerName) || t.Description == _settings.TimerName);
+            }
+
+            if (_project is null)
+            {
+                logger.LogError($"Fetching running timer failed, no project in workspace matching {_settings.ProjectName}");
+                return null;
+            }
+
+            return timeEntries?.FirstOrDefault(t => t.ProjectId == _project.Id
+                                                    && (string.IsNullOrEmpty(_settings.TimerName) || t.Description == _settings.TimerName)
+                                                    && (string.IsNullOrEmpty(_settings.TaskName) || string.IsNullOrEmpty(_task?.Id) || t.TaskId == _task.Id)
+                                                    && ((t.TagIds is null && _tags is null) || (t.TagIds is not null && _tags is not null && t.TagIds.OrderBy(s => s, StringComparer.InvariantCulture)
+                                                                                                                                              .SequenceEqual(_tags.OrderBy(s => s, StringComparer.InvariantCulture))))
+                                                    && t.Billable == _settings.Billable);
+        }
+        catch (Exception exception) when (exception is ApiException or HttpRequestException)
+        {
+            logger.LogError($"Fetching running timer failed, TimeEntry request failed: {exception.Message}");
+            return null;
         }
     }
 
