@@ -18,7 +18,7 @@
 
             <div class="sdpi-item">
                 <div class="sdpi-item-label">API Key</div>
-                <input class="sdpi-item-value sdProperty" id="apiKey" value="" pattern="[A-Za-z0-9]+" placeholder="Enter your Private API Key" oninput="setSettings(); scheduleLoad();" required>
+                <input class="sdpi-item-value sdProperty" id="apiKey" value="" pattern="[A-Za-z0-9]+" placeholder="Enter your Private API Key" oninput="setSettings();" required>
             </div>
             <div class="sdpi-item">
                 <div class="sdpi-item-label">Workspace</div>
@@ -80,131 +80,11 @@
                     </div>
                     <div class="sdpi-item">
                         <div class="sdpi-item-label">Server Url</div>
-                        <input class="sdpi-item-value sdProperty" id="serverUrl" value="https://api.clockify.me/api/v1" placeholder="Enter the URL of the Server" oninput="setSettings(); scheduleLoad();" required>
-                    </div>
-                    <div class="sdpi-item">
-                        <div class="sdpi-item-label">&nbsp;</div>
-                        <button class="sdpi-item-value" onclick="triggerLoad(); return false;">↻ Refresh</button>
+                        <input class="sdpi-item-value sdProperty" id="serverUrl" value="https://api.clockify.me/api/v1" placeholder="Enter the URL of the Server" oninput="setSettings();" required>
                     </div>
                 </div>
             </div>
         </div>
 
-        <script>
-            'use strict';
-
-            let _loadTimer = null;
-            let _workspaces = [];
-            let _projects = [];
-
-            function getApiBaseUrl() {
-                const raw = (document.getElementById('serverUrl').value || 'https://api.clockify.me/api/v1').replace(/\/+$/, '');
-                return raw.endsWith('/v1') ? raw : raw + '/v1';
-            }
-
-            async function apiFetch(path) {
-                const apiKey = document.getElementById('apiKey').value.trim();
-                if (!apiKey) return null;
-                try {
-                    const resp = await fetch(getApiBaseUrl() + path, { headers: { 'X-Api-Key': apiKey } });
-                    return resp.ok ? resp.json() : null;
-                } catch {
-                    return null;
-                }
-            }
-
-            function populateSelect(selectId, items, savedValue, emptyLabel) {
-                const select = document.getElementById(selectId);
-                select.innerHTML = `<option value="">${emptyLabel}</option>`;
-                (items || []).forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.name;
-                    opt.textContent = item.name;
-                    select.appendChild(opt);
-                });
-                if (savedValue) select.value = savedValue;
-            }
-
-            async function loadWorkspaces() {
-                _workspaces = await apiFetch('/workspaces') || [];
-                populateSelect('workspaceSelect', _workspaces, document.getElementById('workspaceName').value, '-- Select Workspace --');
-                await loadProjects();
-            }
-
-            async function loadProjects() {
-                const workspace = _workspaces.find(w => w.name === document.getElementById('workspaceSelect').value);
-                if (!workspace) {
-                    populateSelect('projectSelect', [], '', '-- No Project --');
-                    populateSelect('taskSelect', [], '', '-- No Task --');
-                    return;
-                }
-                _projects = await apiFetch(`/workspaces/${workspace.id}/projects?page-size=5000`) || [];
-                populateSelect('projectSelect', _projects, document.getElementById('projectName').value, '-- No Project --');
-                await loadTasks();
-            }
-
-            async function loadTasks() {
-                const workspace = _workspaces.find(w => w.name === document.getElementById('workspaceSelect').value);
-                const project = _projects.find(p => p.name === document.getElementById('projectSelect').value);
-                if (!workspace || !project) {
-                    populateSelect('taskSelect', [], '', '-- No Task --');
-                    return;
-                }
-                const tasks = await apiFetch(`/workspaces/${workspace.id}/projects/${project.id}/tasks?page-size=5000&is-active=true`) || [];
-                populateSelect('taskSelect', tasks, document.getElementById('taskName').value, '-- No Task --');
-            }
-
-            function syncHidden() {
-                document.getElementById('workspaceName').value = document.getElementById('workspaceSelect').value;
-                document.getElementById('projectName').value = document.getElementById('projectSelect').value;
-                document.getElementById('taskName').value = document.getElementById('taskSelect').value;
-            }
-
-            async function onWorkspaceChange() {
-                // Pre-clear downstream saved values so loadProjects/loadTasks don't restore stale selections
-                document.getElementById('projectName').value = '';
-                document.getElementById('taskName').value = '';
-                await loadProjects();
-                syncHidden();
-                setSettings();
-            }
-
-            async function onProjectChange() {
-                document.getElementById('taskName').value = '';
-                await loadTasks();
-                syncHidden();
-                setSettings();
-            }
-
-            function onTaskChange() {
-                syncHidden();
-                setSettings();
-            }
-
-            function scheduleLoad() {
-                clearTimeout(_loadTimer);
-                _loadTimer = setTimeout(triggerLoad, 1000);
-            }
-
-            async function triggerLoad() {
-                await loadWorkspaces();
-            }
-
-            // When sdtools.common.js restores saved settings it sets apiKey.value programmatically.
-            // Intercept that assignment to trigger dropdown population with the correct saved values.
-            document.addEventListener('DOMContentLoaded', () => {
-                const el = document.getElementById('apiKey');
-                const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-                Object.defineProperty(el, 'value', {
-                    get() { return desc.get.call(this); },
-                    set(v) {
-                        desc.set.call(this, v);
-                        // 150 ms gives sdtools time to finish setting all other fields
-                        if (v) setTimeout(triggerLoad, 150);
-                    },
-                    configurable: true
-                });
-            });
-        </script>
     </body>
 </html>
