@@ -86,5 +86,66 @@
             </div>
         </div>
 
+        <script>
+            'use strict';
+
+            function populateSelect(selectId, names, savedValue, emptyLabel) {
+                const select = document.getElementById(selectId);
+                const current = savedValue !== undefined ? savedValue : select.value;
+                select.innerHTML = `<option value="">${emptyLabel}</option>`;
+                (names || []).forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    select.appendChild(opt);
+                });
+                if (current) select.value = current;
+            }
+
+            function handlePluginMessage(payload) {
+                if (!payload) return;
+                populateSelect('workspaceSelect', payload.WorkspaceNames,
+                    document.getElementById('workspaceName').value, '-- Select Workspace --');
+                populateSelect('projectSelect', payload.ProjectNames,
+                    document.getElementById('projectName').value, '-- No Project --');
+                populateSelect('taskSelect', payload.TaskNames,
+                    document.getElementById('taskName').value, '-- No Task --');
+            }
+
+            function syncHidden() {
+                document.getElementById('workspaceName').value = document.getElementById('workspaceSelect').value;
+                document.getElementById('projectName').value  = document.getElementById('projectSelect').value;
+                document.getElementById('taskName').value     = document.getElementById('taskSelect').value;
+            }
+
+            function onWorkspaceChange() {
+                document.getElementById('projectName').value = '';
+                document.getElementById('taskName').value = '';
+                syncHidden();
+                setSettings();
+            }
+
+            function onProjectChange() {
+                document.getElementById('taskName').value = '';
+                syncHidden();
+                setSettings();
+            }
+
+            function onTaskChange() {
+                syncHidden();
+                setSettings();
+            }
+
+            // sdtools.common.js fires 'websocketCreate' after opening the socket.
+            // We add a second message listener alongside the existing onmessage handler.
+            document.addEventListener('websocketCreate', function () {
+                websocket.addEventListener('message', function (evt) {
+                    const json = JSON.parse(evt.data);
+                    if (json.event === 'sendToPropertyInspector') {
+                        handlePluginMessage(json.payload);
+                    }
+                });
+            });
+        </script>
     </body>
 </html>
