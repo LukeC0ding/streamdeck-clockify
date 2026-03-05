@@ -26,6 +26,8 @@ public class ToggleAction : KeypadBase
 
         Tools.AutoPopulateSettings(_settings, payload.Settings);
 
+        Connection.OnPropertyInspectorDidAppear += async (_, _) => await SendOptionsToPropertyInspectorAsync();
+
         _logger.LogInfo("Creating ToggleAction...");
     }
 
@@ -101,11 +103,6 @@ public class ToggleAction : KeypadBase
         Tools.AutoPopulateSettings(_settings, payload.Settings);
         _logger.LogInfo($"Settings Received: {_settings}");
         await _clockifyService.UpdateSettingsAsync(_settings);
-        await SendOptionsToPropertyInspectorAsync();
-    }
-
-    public override async void PropertyInspectorDidAppear()
-    {
         await SendOptionsToPropertyInspectorAsync();
     }
 
