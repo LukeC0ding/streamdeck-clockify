@@ -121,10 +121,15 @@ public class ToggleAction : KeypadBase
     {
         if (_clockifyService.IsValid)
         {
-            return true;   
+            return true;
         }
-        
+
         await _clockifyService.UpdateSettingsAsync(_settings);
+
+        if (_clockifyService.IsValid)
+        {
+            await SendOptionsToPropertyInspectorAsync();
+        }
 
         return _clockifyService.IsValid;
     }
